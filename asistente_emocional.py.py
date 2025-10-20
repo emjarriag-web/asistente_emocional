@@ -1,12 +1,11 @@
+import os
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 from textblob import TextBlob
-import pyttsx3
 import random
 
-# Configurar voz
-engine = pyttsx3.init()
-engine.setProperty('rate', 150)  # velocidad de la voz
+# Leer token desde la variable de entorno
+TOKEN = os.environ.get("TOKEN")
 
 # Mensajes motivacionales
 mensajes = {
@@ -45,22 +44,17 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Respuesta en Telegram
     await update.message.reply_text(respuesta)
-    
-    # Respuesta por voz en tu PC
-    engine.say(respuesta)
-    engine.runAndWait()
 
 # Comando /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hola bro! Soy tu asistente Emocional 😎. Cuéntame cómo te sientes.")
-
-# Token de tu bot (pon el que te dio BotFather)
-TOKEN = "TU_TOKEN_AQUI"
+    await update.message.reply_text(
+        "Hola bro! Soy tu Asistente Emocional 😎. Cuéntame cómo te sientes."
+    )
 
 # Crear bot
 app = ApplicationBuilder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder))
 
-print("asistente emocional activo... 🚀")
+print("Asistente emocional activo... 🚀")
 app.run_polling()
