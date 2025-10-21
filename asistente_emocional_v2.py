@@ -2,18 +2,13 @@ import os
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 from textblob import TextBlob
-import pyttsx3
 import random
 from pydub import AudioSegment
 import io
 import speech_recognition as sr
 
-# Token del bot (usa tu variable de entorno en Render)
+# Token del bot (usa variable de entorno en Render)
 TOKEN = os.environ.get("TOKEN")
-
-# Configurar voz (solo para pruebas locales)
-engine = pyttsx3.init()
-engine.setProperty('rate', 150)
 
 # Mensajes motivacionales más largos
 mensajes = {
@@ -49,13 +44,7 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text
     estado = analizar_sentimiento(texto)
     respuesta = random.choice(mensajes[estado])
-    
-    # Respuesta en Telegram
     await update.message.reply_text(respuesta)
-    
-    # Respuesta por voz (solo local)
-    engine.say(respuesta)
-    engine.runAndWait()
 
 # Función para procesar voice messages de Telegram
 async def procesar_voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -84,14 +73,15 @@ async def procesar_voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
         estado = analizar_sentimiento(texto)
         respuesta = random.choice(mensajes[estado])
         await update.message.reply_text(respuesta)
-        engine.say(respuesta)
-        engine.runAndWait()
     else:
         await update.message.reply_text("No entendí bro 😅, intenta de nuevo.")
 
 # Comando /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hola bro! Soy tu asistente Emocional 😎. Cuéntame cómo te sientes o mándame un mensaje de voz.")
+    await update.message.reply_text(
+        "Hola bro! Soy tu asistente Emocional 😎. "
+        "Cuéntame cómo te sientes o mándame un mensaje de voz."
+    )
 
 # Crear bot y handlers
 app = ApplicationBuilder().token(TOKEN).build()
