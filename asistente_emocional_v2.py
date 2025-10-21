@@ -1,87 +1,92 @@
 import os
 import io
 import random
+from textblob import TextBlob
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-from pydub import AudioSegment
+from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes
 import speech_recognition as sr
+from pydub import AudioSegment
 
-# Tu token de Telegram desde Render (Environment Variables)
-TOKEN = os.environ.get("TOKEN")
+TOKEN = os.getenv("TOKEN")  # tu token de Telegram (debe estar en Render o .env)
 
-# Mensajes motivacionales
+# Análisis de sentimiento
+def analizar_sentimiento(texto):
+    analisis = TextBlob(texto).sentiment.polarity
+    if analisis > 0.1:
+        return "positivo"
+    elif analisis < -0.1:
+        return "negativo"
+    else:
+        return "neutro"
+
+# Respuestas emocionales
 mensajes = {
     "positivo": [
-        "¡Me alegra que te sientas así! Sigue así 😎 Recuerda que tu energía positiva atrae cosas buenas.",
-        "Genial, eso es energía positiva 💪 Mantén tu motivación y sigue disfrutando cada momento.",
-        "Sigue disfrutando de tu día, bro 🌟 La actitud positiva es contagiosa, ¡difúndela!"
+        "¡Me alegra escuchar eso, bro! 😄",
+        "¡Esa es la actitud, sigue así 🔥!",
+        "Qué buena vibra transmites hoy 😎"
     ],
     "negativo": [
-        "Ánimo, esto va a mejorar 😌 Cada día es una nueva oportunidad para sentirte mejor.",
-        "Recuerda que después de la lluvia siempre sale el sol ☀️ Todo tiene solución, bro, confía en ti.",
-        "Tranquilo, bro, todo tiene solución 💪 Respira hondo y da un paso a la vez, no estás solo."
+        "Hey bro, tranquilo... todo mejora, te lo prometo 💪",
+        "A veces los días duelen, pero no duran para siempre 🖤",
+        "Cuenta conmigo bro, estoy aquí contigo 🤝"
     ],
-    "neutral": [
-        "Entiendo, gracias por compartirlo 😊 Sigue así y verás cómo tu día mejora poco a poco.",
-        "Gracias por contarme, bro. A veces solo expresar lo que sentimos ya ayuda bastante.",
-        "Todo bien, seguimos adelante 😎 Mantén la calma y avanza paso a paso, bro."
+    "neutro": [
+        "Entiendo lo que dices, bro.",
+        "Hmm interesante 😶",
+        "¿Quieres contarme más sobre eso?"
     ]
 }
 
-# Analizar sentimiento
-def analizar_sentimiento(texto):
-    from textblob import TextBlob
-    polaridad = TextBlob(texto).sentiment.polarity
-    if polaridad > 0.1:
-        return "positivo"
-    elif polaridad < -0.1:
-        return "negativo"
-    else:
-        return "neutral"
-
-# Comando /start
+# Mensaje de inicio
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hola bro! Soy tu asistente emocional 😎. Envíame un voice message y te responderé según cómo te sientas.")
+    await update.message.reply_text("¡Hola bro! Soy tu asistente emocional 🤖. Puedes hablarme o mandarme una nota de voz 💬🎧")
 
-# Función para procesar voice messages
-async def procesar_voz(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# Cuando el usuario manda texto
+async def texto_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    texto = update.message.text
+    estado = analizar_sentimiento(texto)
+    respuesta = random.choice(mensajes[estado])
+    await update.message.reply_text(respuesta)
+
+# Cuando el usuario manda audio
+async def voz_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         file = await context.bot.get_file(update.message.voice.file_id)
         bio = io.BytesIO()
-        await file.download(out=bio)
+        await file.download_to_memory(out=bio)
         bio.seek(0)
 
-        # Convertir OGG a WAV
-        audio = AudioSegment.from_ogg(bio)
+        # Convertir OGG a WAV sin usar ffmpeg.exe
+        audio = AudioSegment.from_file(bio, format="ogg")
         wav_io = io.BytesIO()
         audio.export(wav_io, format="wav")
         wav_io.seek(0)
 
-        # Reconocer texto
         recognizer = sr.Recognizer()
         with sr.AudioFile(wav_io) as source:
             audio_data = recognizer.record(source)
-            try:
-                texto = recognizer.recognize_google(audio_data, language="es-ES")
-            except:
-                texto = None
+            texto = recognizer.recognize_google(audio_data, language="es-ES")
 
-        if texto:
-            estado = analizar_sentimiento(texto)
-            respuesta = random.choice(mensajes[estado])
-            await update.message.reply_text(respuesta)
-        else:
-            await update.message.reply_text("No entendí bro 😅, intenta de nuevo.")
+        estado = analizar_sentimiento(texto)
+        respuesta = random.choice(mensajes[estado])
+        await update.message.reply_text(f"Escuché: “{texto}”\n\n{respuesta}")
+
     except Exception as e:
-        await update.message.reply_text(f"Hubo un error al procesar tu mensaje 😓: {e}")
+        await update.message.reply_text(f"Hubo un error al procesar tu audio 😅 ({e})")
 
-# Crear bot
+# Iniciar el bot
 app = ApplicationBuilder().token(TOKEN).build()
 app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.VOICE, procesar_voz))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, texto_handler))
+app.add_handler(MessageHandler(filters.VOICE, voz_handler))
 
-print("Asistente emocional activo 🚀")
-app.run_polling()
+if __name__ == "__main__":
+    print("🤖 Asistente emocional corriendo...")
+    app.run_polling()
+
+
+
 
 
 
